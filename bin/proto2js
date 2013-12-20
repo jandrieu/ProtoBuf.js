@@ -27,6 +27,8 @@ var ProtoBuf = require(__dirname+"/../ProtoBuf.js"),
     pkg = require(__dirname+"/../package.json"),
     ascli = require("ascli");
 
+if (!fs.existsSync) fs.existsSync = path.existsSync; // node 0.6
+
 if (process.argv.length < 3) {
     ascli.banner("proto".green.bold+"2".white.bold+"js".green.bold, "ProtoBuf.js v"+pkg['version']+" "+"https://github.com/dcodeIO/ProtoBuf.js".grey);
     console.log("Usage: "+path.basename(process.argv[1]).green.bold+" protoFile [-class[=My.Package]|-commonjs[=My.Package]|-amd[=My.Package]] [-min] [> outFile]\n");
@@ -50,10 +52,12 @@ for (var i=3; i<process.argv.length; i++) {
     var option = process.argv[i];
     if (option.substring(0,1) == "-") {
         var opt = option.split("=", 2), key = opt[0].substring(1);
-        if (typeof options[key] === 'string') {
-            options[key] = [options[key], opt[1]];
+        if (typeof options[key] === 'string' && typeof opt[1] === 'string') {
+            options[key] = [options[key], opt[1]]; // Make it an array
+        } else if (Array.isArray(options[key]) && typeof opt[1] === 'string') {
+            options[key].push(opt[1]); // Add it
         } else {
-            options[key] = opt.length == 2 ? opt[1] : true;
+            options[key] = opt.length == 2 ? opt[1] : true; // Create or overwrite
         }
     }
 }
@@ -212,7 +216,7 @@ function build_shim(pkg, file, min) {
         path += part[part.length-1];
         vars += path+WHITESPACE+'='+WHITESPACE;
     }
-    return vars+'dcodeIO.ProtoBuf.newBuilder()'+out+'.build('+(pkg !== null ? '"'+pkg+'"' : '')+')';
+    return vars+'dcodeIO.ProtoBuf.newBuilder()'+out+'.build('+(pkg !== null ? '"'+pkg+'"' : '')+');';
 }
 
 /**

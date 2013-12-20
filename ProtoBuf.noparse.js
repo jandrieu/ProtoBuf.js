@@ -38,7 +38,7 @@
          * @const
          * @expose
          */
-        ProtoBuf.VERSION = "2.0.0-rc3";
+        ProtoBuf.VERSION = "2.0.1";
 
         /**
          * Wire types.
@@ -1366,19 +1366,11 @@
                 }
                 // Signed 32bit
                 if (this.type == ProtoBuf.TYPES["int32"] || this.type == ProtoBuf.TYPES["sint32"] || this.type == ProtoBuf.TYPES["sfixed32"]) {
-                    i = parseInt(value, 10);
-                    if (isNaN(i)) {
-                        throw(new Error("Illegal value for "+this.toString(true)+": "+value+" (not a number)"));
-                    }
-                    return i | 0;
+                    return isNaN(i = parseInt(value, 10)) ? i : i | 0; // Do not cast NaN as it'd become 0
                 }
                 // Unsigned 32bit
                 if (this.type == ProtoBuf.TYPES["uint32"] || this.type == ProtoBuf.TYPES["fixed32"]) {
-                    i = parseInt(value, 10);
-                    if (isNaN(i)) {
-                        throw(new Error("Illegal value for "+this.toString(true)+": "+value+" (not a number)"));
-                    }
-                    return i >>> 0;
+                    return isNaN(i = parseInt(value, 10)) ? i : i >>> 0; // Do not cast NaN as it'd become 0
                 }
                 if (ProtoBuf.Long) {
                     // Signed 64bit
@@ -1403,11 +1395,7 @@
                 }
                 // Float
                 if (this.type == ProtoBuf.TYPES["float"] || this.type == ProtoBuf.TYPES["double"]) {
-                    i = parseFloat(value);
-                    if (isNaN(i)) {
-                        throw(new Error("Illegal value for "+this.toString(true)+": "+value+" (not a number)"));
-                    }
-                    return i;
+                    return parseFloat(value); // May also become NaN, +Infinity, -Infinity
                 }
                 // Length-delimited string
                 if (this.type == ProtoBuf.TYPES["string"]) {
@@ -2466,7 +2454,13 @@
                                 this["import"]((new ProtoBuf.DotProto.Parser(contents+"")).parse(), importFilename); // May throw
                             }
                         } else { // Import structure
-                            this["import"](json['imports'][i], /* unique fake */ filename.replace(/^(.+)\.(\w+)$/, function($0, $1, $2) { return $1+"_import"+i+"."+$2; }));
+                            if (!filename) {
+                                this["import"](json['imports'][i]);
+                            } else if (/\.(\w+)$/.test(filename)) { // With extension: Append _importN to the name portion to make it unique
+                                this["import"](json['imports'][i], filename.replace(/^(.+)\.(\w+)$/, function($0, $1, $2) { return $1+"_import"+i+"."+$2; }));
+                            } else { // Without extension: Append _importN to make it unique
+                                this["import"](json['imports'][i], filename+"_import"+i);
+                            }
                         }
                     }
                     if (resetRoot) { // Reset import root override when all imports are done
